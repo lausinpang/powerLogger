@@ -36,10 +36,8 @@ def graph_meas_period(columns, opt, file):
 	idx = new_df.index
 	num_of_rows = len(idx)
 
-	new_df['FormattedTime'] = pd.to_datetime(df['FormattedTime'], format="%d/%m/%Y %H:%M:%S")
-	new_df.plot(x="FormattedTime", y=columns, figsize=(15*3*cm, 5*3*cm), color=['black', 'blue', 'red'])
-	print(type(df["FormattedTime"].iloc[0]))
-	print(type(df["FormattedTime"].iloc[-1]))
+	new_df.plot(x="FormattedTime", y=columns, figsize=(25*3*cm, 5*3*cm), color=['black', 'blue', 'red'],x_compat=True)
+	
 	if opt != "Power factor":
 		legend = plt.legend(bbox_to_anchor=(0.8, -0.05), ncol=3, columnspacing=15)
 
@@ -63,7 +61,13 @@ def graph_meas_period(columns, opt, file):
 		plt.ylim(0, 250)
 
 	# setup graph
-	# plt.xlim(min(), max())
+	plt.xlim(df["FormattedTime"].iloc[0], df["FormattedTime"].iloc[-1])
+
+	hours = mdates.HourLocator(interval = 6)
+	h_fmt = mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S')
+	plt.gca().xaxis.set_major_locator(hours)
+	plt.gca().xaxis.set_major_formatter(h_fmt)
+	
 	plt.xticks(fontsize=6)
 	plt.grid()
 	plt.xlabel("")
@@ -106,6 +110,7 @@ def get_columns(opt):
 def get_df(file):  # get dataFrame from csv
 	data = pd.read_csv(file, skiprows=lambda x: x in exclude_rows, header=0)
 	new_data = data.assign(dateTime=data.Date + "\n" + data.Time, FormattedTime=data.Date + " " + data.Time)
+	new_data['FormattedTime'] = pd.to_datetime(new_data['FormattedTime'], format="%d/%m/%Y %H:%M:%S")
 	return new_data
 
 
