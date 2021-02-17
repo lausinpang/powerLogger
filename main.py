@@ -6,8 +6,10 @@ from docx.shared import RGBColor
 from docx.shared import Inches
 import pandas as pd
 import numpy as np
+from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
 from datetime import datetime, timedelta
+import matplotlib.dates as mdates
 
 cm = 1/2.54  # centimeters in inches
 exclude_rows = [1, 2, 3, 4, 5, 6]  # rows to exclude in reading CSV file
@@ -26,7 +28,7 @@ def save_to_png(plt, file, opt):
 	results_dir = os.path.join(script_dir, 'graphs/')
 	if not os.path.isdir(results_dir):
 		os.makedirs(results_dir)
-	fig = plt.savefig('graphs/'+opt+"_"+os.path.splitext(file)[0]+'.png')
+	fig = plt.savefig('graphs/'+opt+"_"+os.path.splitext(file)[0]+'.png', bbox_inches='tight', pad_inches=1)
 	plt.close(fig)
 
 
@@ -35,14 +37,12 @@ def graph_meas_period(columns, opt, file):
 	new_df = df[["FormattedTime"] + columns]
 	idx = new_df.index
 	num_of_rows = len(idx)
+	new_df.plot(x="FormattedTime", y=columns, figsize=(25 * 3 * cm, 5 * 3 * cm), color=['black', 'blue', 'red'],
+				x_compat=True)
 
-	new_df['FormattedTime'] = pd.to_datetime(df['FormattedTime'], format="%d/%m/%Y %H:%M:%S")
-	new_df.plot(x="FormattedTime", y=columns, figsize=(15*3*cm, 5*3*cm), color=['black', 'blue', 'red'])
-	print(type(df["FormattedTime"].iloc[0]))
-	print(type(df["FormattedTime"].iloc[-1]))
 	if opt != "Power factor":
-		legend = plt.legend(bbox_to_anchor=(0.8, -0.05), ncol=3, columnspacing=15)
-
+		legend = plt.legend(bbox_to_anchor=(0.65, -0.1), ncol=3, columnspacing=15)
+		# plt.xlim([new_df["FormattedTime"].iloc[0], new_df["FormattedTime"].iloc[-1]])
 		# set legend text
 		for col in columns:
 			if "1" in col:
@@ -63,7 +63,13 @@ def graph_meas_period(columns, opt, file):
 		plt.ylim(0, 250)
 
 	# setup graph
-	# plt.xlim(min(), max())
+	plt.xlim(df["FormattedTime"].iloc[0], df["FormattedTime"].iloc[-1])
+
+	hours = mdates.HourLocator(interval=6)
+	h_fmt = mdates.DateFormatter('%Y-%m-%d\n%H:%M:%S')
+	plt.gca().xaxis.set_major_locator(hours)
+	plt.gca().xaxis.set_major_formatter(h_fmt)
+
 	plt.xticks(fontsize=6)
 	plt.grid()
 	plt.xlabel("")
@@ -76,19 +82,38 @@ def graph_meas_period(columns, opt, file):
 
 
 def graph_cur_vs_thd(cols_current, cols_thd):
-	graph_df = df[cols_current+cols_thd]
-	ax1= graph_df.plot(kind='scatter', x="I1[A]", y="THD-F_I1[%]", figsize=(15*3*cm, 5*3*cm),
-					label="Phase 1", color='black')
-	ax2= graph_df.plot(kind='scatter', x="I2[A]", y="THD-F_I2[%]", figsize=(15*3*cm, 5*3*cm),
-					label="Phase 2", ax=ax1, color='b')
-	ax3= graph_df.plot(kind='scatter', x="I3[A]", y="THD-F_I3[%]", figsize=(15*3*cm, 5*3*cm),
-					label="Phase 3", ax=ax1, color='r')
+	graph_df = df[cols_current + cols_thd]
+	ax1 = graph_df.plot(kind='scatter', x="I1[A]", y="THD-F_I1[%]", figsize=(15 * 3 * cm, 5 * 3 * cm),
+						label="Phase 1", color='black')
+	ax2 = graph_df.plot(kind='scatter', x="I2[A]", y="THD-F_I2[%]", figsize=(15 * 3 * cm, 5 * 3 * cm),
+						label="Phase 2", ax=ax1, color='b')
+	ax3 = graph_df.plot(kind='scatter', x="I3[A]", y="THD-F_I3[%]", figsize=(15 * 3 * cm, 5 * 3 * cm),
+						label="Phase 3", ax=ax1, color='r')
 
 	# setup graph
+	min_current = graph_df[["I1[A]", "I2[A]", "I3[A]"]].min().min()
+	min_multiplier = min_current if (graph_df[["I1[A]", "I2[A]", "I3[A]"]].min().min() < 0) else 0
+	max_current = graph_df[["I1[A]", "I2[A]", "I3[A]"]].max().max()
+	max_multiplier = max_current if (graph_df[["I1[A]", "I2[A]", "I3[A]"]].max().max() > 2000) else 0
+
+	# plt.xlim(min_current,max_current)
+	plt.ylim(0, graph_df[["THD-F_I1[%]", "THD-F_I2[%]", "THD-F_I3[%]"]].max().max())
 	plt.xticks(fontsize=6)
 	plt.grid()
 	plt.xlabel("Phase Current (A)")
 	plt.ylabel("Current Harmonics (%)")
+
+	# shade scatter plot
+	plt.gca().add_patch(Rectangle((-100 + (min_multiplier), 0), 140 + (min_multiplier * -1), 20,
+								  color='grey', alpha=0.5))
+	plt.gca().add_patch(Rectangle((40, 0), 360, 15,
+								  color='grey', alpha=0.5))
+	plt.gca().add_patch(Rectangle((400, 0), 400, 12,
+								  color='grey', alpha=0.5))
+	plt.gca().add_patch(Rectangle((800, 0), 1200, 8,
+								  color='grey', alpha=0.5))
+	plt.gca().add_patch(Rectangle((2000, 0), 1000 + max_multiplier, 5,
+								  color='grey', alpha=0.5))
 
 	save_to_png(plt, file, "Current_vs_THD")
 
@@ -106,6 +131,7 @@ def get_columns(opt):
 def get_df(file):  # get dataFrame from csv
 	data = pd.read_csv(file, skiprows=lambda x: x in exclude_rows, header=0)
 	new_data = data.assign(dateTime=data.Date + "\n" + data.Time, FormattedTime=data.Date + " " + data.Time)
+	new_data['FormattedTime'] = pd.to_datetime(new_data['FormattedTime'], format="%d/%m/%Y %H:%M:%S")
 	return new_data
 
 
@@ -121,18 +147,68 @@ def get_min(df, col):
 
 def get_circuit_operation(df):
 	sLength = len(df['Date'])
+	average_i1 = round(df['I1[A]'].mean(skipna=True), 2)
+	average_i2 = round(df['I2[A]'].mean(skipna=True), 2)
+	average_i3 = round(df['I3[A]'].mean(skipna=True), 2)
+	average_i = max(average_i3, average_i2, average_i1)
 	df['Weekday'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['Hour'] = pd.Series(np.random.randn(sLength), index=df.index)
-	df['Test'] = pd.Series(np.random.randn(sLength), index=df.index)
-	df['Test'] = df['Time'].str.len()
-	for x in range(sLength):
-		if df["Test"].loc[x] == 7:
-			df['Hour'] = df['Time'].str[0]
-		elif df["Test"].loc[x] == 8:
-			df['Hour'] = df['Time'].str[:2]
-	df['Date'] = pd.to_datetime(df['Date'], format="%d/%m/%Y")
-	df['Weekday'] = df['Date'].dt.dayofweek
-	return 1
+	df['dateTime'] = pd.Series(np.random.randn(sLength), index=df.index)
+	df['dateTime'] = df['Date'] + ' ' + df['Time']
+	df['dateTime'] = pd.to_datetime(df['dateTime'], format="%d/%m/%Y %H:%M:%S")
+	df['Hour'] = df['dateTime'].dt.hour
+	df['Weekday'] = df['dateTime'].dt.dayofweek
+	print(df)
+	base_load_mon = []
+	base_load_tue = []
+	base_load_wed = []
+	base_load_thu = []
+	base_load_fri = []
+	base_load_sat = []
+	base_load_sun = []
+	for i in range(len(df["Hour"])):
+		if df['Weekday'].iloc[i] == 0:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_mon.append(df['Hour'].iloc[i])
+		elif df['Weekday'].iloc[i] == 1:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_tue.append(df['Hour'].iloc[i])
+		elif df['Weekday'].iloc[i] == 2:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_wed.append(df['Hour'].iloc[i])
+		elif df['Weekday'].iloc[i] == 3:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_thu.append(df['Hour'].iloc[i])
+		elif df['Weekday'].iloc[i] == 4:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_fri.append(df['Hour'].iloc[i])
+		elif df['Weekday'].iloc[i] == 5:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_sat.append(df['Hour'].iloc[i])
+		elif df['Weekday'].iloc[i] == 6:
+			if df["I1[A]"].iloc[i] > average_i:
+				base_load_sun.append(df['Hour'].iloc[i])
+	base_load_start_weekday = min(base_load_mon[0], base_load_tue[0], base_load_wed[0], base_load_thu[0], base_load_fri[0])
+	base_load_end_weekday = max(base_load_mon[-1], base_load_tue[-1], base_load_wed[-1], base_load_thu[-1], base_load_fri[-1])
+	if len(base_load_sun) == 0 or len(base_load_sun) == 1:
+		details = {
+			"Weekday start": base_load_start_weekday,
+			"Weekday end": base_load_end_weekday,
+			"Sat start": base_load_sat[0],
+			"Sat end": base_load_sat[-1],
+			"Sun start": 0,
+			"Sun end": 0,
+		}
+	if len(base_load_sun) > 1:
+		details = {
+			"Weekday start": base_load_start_weekday,
+			"Weekday end": base_load_end_weekday,
+			"Sat start": base_load_sat[0],
+			"Sat end": base_load_sat[-1],
+			"Sun start": base_load_sun[0],
+			"Sun end": base_load_sun[-1],
+		}
+	return details
 
 
 def get_average(df):
@@ -147,16 +223,21 @@ def get_average(df):
 	average_i1 = round(df['I1[A]'].mean(skipna=True), 2)
 	average_i2 = round(df['I2[A]'].mean(skipna=True), 2)
 	average_i3 = round(df['I3[A]'].mean(skipna=True), 2)
+	exchange = (df['I1[A]'].min() + df['I2[A]'].min()+ df['I3[A]'].min())/3
+	min_i = round(exchange, 2)
 	average_PF = round(df['PF'].mean(skipna=True), 2)
 	max_pf = round(df['PF'].max(), 2)
 	min_pf = round(df['PF'].min(), 2)
 	average_v1 = round(df['U1[V]'].mean(skipna=True), 2)
 	average_v2 = round(df['U2[V]'].mean(skipna=True), 2)
 	average_v3 = round(df['U3[V]'].mean(skipna=True), 2)
+	exchange = (maxi_THD1+maxi_THD2+maxi_THD3)/3
+	max_thd = round(exchange, 2)
 	details = {
 		"AVE i1": average_i1,
 		"AVE i2": average_i2,
 		"AVE i3": average_i3,
+		"MIN i": min_i,
 		"AVE v1": average_v1,
 		"AVE v2": average_v2,
 		"AVE v3": average_v3,
@@ -169,6 +250,7 @@ def get_average(df):
 		"MAX THD1": maxi_THD1,
 		"MAX THD2": maxi_THD2,
 		"MAX THD3": maxi_THD3,
+		"MAX THD": max_thd,
 		"AVE THD": average_THD,
 	}
 	return details
@@ -288,13 +370,43 @@ for x in range(incomer_total):
 	document.add_heading(circuit_details[x]["Circuit Name"] + ' (' + circuit_details[x]["Circuit current"] + 'A)', level=1)
 	p = document.add_paragraph().add_run('Current and Voltage')
 	p.bold = True
-	a = document.add_paragraph().add_run('The daily pattern of energy usage is similar during the weekday'
-										 'in which the energy increased to higher demand from 6:00 am to 7:00 '
-										 'pm and it keeps at baseload (around 25A – 35A) during the overnight '
-										 'period. In Saturday, the energy usage decreased after 1:00 pm. In Sunday,'
-										 ' the energy usage remained at baseload. The current and voltage '
-										 'measurement are presented below.')
-	a.font.color.rgb = RGBColor(255, 0, 0)
+	baseload_weekday_start = str(incomer_detail[x]["Weekday start"])
+	if len(baseload_weekday_start) == 1:
+		baseload_weekday_start = "0" + baseload_weekday_start
+	baseload_weekday_end = str(incomer_detail[x]["Weekday end"])
+	if len(baseload_weekday_end) == 1:
+		baseload_weekday_end = "0" + baseload_weekday_end
+	incomer_curmin = round(circuit_average[x]["MIN i"], -1)
+	incomer_curmax = str(incomer_curmin +30)
+	incomer_curmin = str(incomer_curmin)
+	document.add_paragraph('The daily pattern of current demand is different from weekday to weekend. ' +
+						   'The current demand in weekday increases at around ' + baseload_weekday_start + ':00 ' +
+						   'and decreases at around ' + baseload_weekday_end + ':00. The baseload in weekday is ' +
+						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A at non-peak hours')
+	baseload_sat_start = str(incomer_detail[x]["Sat start"])
+	if len(baseload_sat_start) == 1:
+		baseload_sat_start = "0" + baseload_sat_start
+	baseload_sat_end = str(incomer_detail[x]["Sat end"])
+	if len(baseload_sat_end) == 1:
+		baseload_sat_end = "0" + baseload_sat_end
+	document.add_paragraph('The current demand on Saturday increases at around ' + baseload_sat_start + ':00 ' +
+						   'and decreases at around ' + baseload_sat_end + ':00. The baseload on Saturday is ' +
+						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A  at non-peak hours')
+	if incomer_detail[x]["Sat start"] == 0:
+		document.add_paragraph('The current demand on Sunday stays within the base load of ' +  incomer_curmin +
+							   'A to ' + incomer_curmax + 'A for the whole day.')
+	else:
+		baseload_sun_start = str(incomer_detail[x]["Sun start"])
+		if len(baseload_sun_start) == 1:
+			baseload_sun_start = "0" + baseload_sun_start
+		baseload_sun_end = str(incomer_detail[x]["Sun end"])
+		if len(baseload_sun_end) == 1:
+			baseload_sun_end = "0" + baseload_sun_end
+		document.add_paragraph('The current demand on Sunday increases at around ' + baseload_sun_start + ':00 ' +
+							   'and decreases at around ' + baseload_sun_end + ':00. The baseload on Sunday is ' +
+							   'about ' + incomer_curmin + 'A to ' + incomer_curmax + 'A  at non-peak hours')
+
+	document.add_paragraph('The current and voltage measurement are presented below.')
 
 	# add current table and label format
 	document.add_paragraph('Current of ' + circuit_details[x]["Circuit Name"] + ' for Measurement Period Data Summary')
@@ -456,37 +568,34 @@ for x in range(incomer_total):
 	if int(circuit_details[x]["Circuit current"])>= 400 and int(circuit_details[x]["Circuit current"]) < 800:
 		circuitTHD = "12.0%"
 		wording = "is between 400A and 800A"
-		if int(circuit_average[x]["AVE THD1"]) > 12 or int(circuit_average[x]["AVE THD2"]) > 12 or\
-				int(circuit_average[x]["AVE THD3"]) > 12:
-			word = "does not satisfies"
+		if int(circuit_average[x]["MAX THD"]) > 12:
+			word = "does not fulfill"
 		else:
 			word = "satisfies"
 	elif int(circuit_details[x]["Circuit current"]) >= 800 and int(circuit_details[x]["Circuit current"]) < 2000:
 		circuitTHD = "8.0%"
 		wording = "is between 800A and 2,000A"
-		if int(circuit_average[x]["AVE THD1"]) > 8 or int(circuit_average[x]["AVE THD2"]) > 8 or \
-				int(circuit_average[x]["AVE THD3"]) > 8:
-			word = "does not satisfies"
+		if int(circuit_average[x]["MAX THD"]) > 8:
+			word = "does not fulfill"
 		else:
 			word = "satisfies"
 	elif int(circuit_details[x]["Circuit current"]) > 2000:
 		circuitTHD = "5.0%"
 		wording = "is greater than 2,000A"
-		if int(circuit_average[x]["AVE THD1"]) > 5 or int(circuit_average[x]["AVE THD2"]) > 5 or\
-				int(circuit_average[x]["AVE THD3"]) > 5:
-			word = "does not satisfies"
+		if int(circuit_average[x]["MAX THD"]) > 5:
+			word = "does not fulfill"
 		else:
 			word = "satisfies"
 
 	first = document.add_paragraph('As shown in the table, the rated current of the incomer ' + wording)
 	first.add_run(' and the harmonic distortion percentage of current should not be above ' + circuitTHD + '. ')
-	maxthd = str(circuit_average[x]["AVE THD"])
-	first.add_run('The current THD is averaging at around ' + maxthd)
+	maxthd = str(circuit_average[x]["MAX THD"])
+	first.add_run('The maximum current THD is at around ' + maxthd)
 	first.add_run('%. Overall, the current harmonic distortion percentage of the measurement period ')
 	first.add_run(word)
 	first.add_run(' the requirement of the Code of Practice of Energy Efficiency of Building Services Installation.')
 
-	document.add_paragraph('Figure presents the THD current result for' + circuit_details[x]["Circuit Name"])
+	document.add_paragraph('Figure presents the THD current result for ' + circuit_details[x]["Circuit Name"])
 
 	filepath = os.path.abspath(
 		'graphs/THD-F [%]_' + str(i) + '_' + circuit_details[x]["Circuit Name"] + '_' + circuit_details[x][
