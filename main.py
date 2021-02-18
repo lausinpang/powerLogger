@@ -22,7 +22,6 @@ def sitename():
 
     return sitename
 
-
 def save_to_png(plt, file, opt):
 	script_dir = os.path.dirname(__file__)
 	results_dir = os.path.join(script_dir, 'graphs/')
@@ -30,7 +29,6 @@ def save_to_png(plt, file, opt):
 		os.makedirs(results_dir)
 	fig = plt.savefig('graphs/'+opt+"_"+os.path.splitext(file)[0]+'.png', bbox_inches='tight', pad_inches=1)
 	plt.close(fig)
-
 
 def graph_meas_period(columns, opt, file):
 	# plot graph
@@ -80,6 +78,40 @@ def graph_meas_period(columns, opt, file):
 
 	return num_of_rows
 
+def graph_additional_current(opt, columns, file):
+	new_df = df[["FormattedTime"] + ["dateTime"] + columns]
+
+	if opt == "Weekday":
+		new_df = new_df[new_df["FormattedTime"].dt.dayofweek < 5]
+	elif opt == "Weekend":
+		new_df = new_df[new_df["FormattedTime"].dt.dayofweek >= 5]
+
+	new_df.plot(x="dateTime", y=columns, figsize=(25*3*cm, 5*3*cm), color=['black', 'blue', 'red'],x_compat=True)
+
+	legend = plt.legend(bbox_to_anchor=(0.675, -0.15), ncol=3, columnspacing=15)
+
+	# set legend text
+	for col in columns:
+		if "1" in col:
+			color = 'black'
+		elif "2" in col:
+			color = 'blue'
+		elif "3" in col:
+			color = 'red'
+		else:
+			color = 'black'
+
+		legend.get_texts()[columns.index(col)].set_text("Current " + col)
+		legend.legendHandles[columns.index(col)].set_color(color)
+
+	plt.gca().margins(0)
+	plt.gcf().autofmt_xdate()
+	plt.xticks(fontsize=6)
+	plt.grid()
+	plt.xlabel("")
+	plt.ylabel("Current [A]")
+
+	save_to_png(plt,file,"Current_"+opt)
 
 def graph_cur_vs_thd(cols_current, cols_thd):
 	graph_df = df[cols_current + cols_thd]
@@ -117,7 +149,6 @@ def graph_cur_vs_thd(cols_current, cols_thd):
 
 	save_to_png(plt, file, "Current_vs_THD")
 
-
 def get_columns(opt):
 	switcher = {
 		"Current [A]": 	["I1[A]", "I2[A]", "I3[A]"],
@@ -127,23 +158,19 @@ def get_columns(opt):
 	}
 	return switcher.get(opt, "Invalid input")
 
-
 def get_df(file):  # get dataFrame from csv
 	data = pd.read_csv(file, skiprows=lambda x: x in exclude_rows, header=0)
 	new_data = data.assign(dateTime=data.Date + "\n" + data.Time, FormattedTime=data.Date + " " + data.Time)
 	new_data['FormattedTime'] = pd.to_datetime(new_data['FormattedTime'], format="%d/%m/%Y %H:%M:%S")
 	return new_data
 
-
 def get_max(df, col):
 	max_index = df[col].idxmax()
 	return df[col].max(), df.iloc[max_index, 0] + ' ' + df.iloc[max_index, 1]
 
-
 def get_min(df, col):
 	min_index = df[col].idxmin()
 	return df[col].min(), df.iloc[min_index, 0] + ' ' + df.iloc[min_index, 1]
-
 
 def get_circuit_operation(df):
 	sLength = len(df['Date'])
@@ -210,7 +237,6 @@ def get_circuit_operation(df):
 		}
 	return details
 
-
 def get_average(df):
 	maxi_THD1 = round(df['THD-F_I1[%]'].max(), 2)
 	maxi_THD2 = round(df['THD-F_I2[%]'].max(), 2)
@@ -255,7 +281,6 @@ def get_average(df):
 	}
 	return details
 
-
 def get_circuit_details(data, file):
 	# s = data
 	# s['PF'].abs()
@@ -287,6 +312,40 @@ def get_circuit_details(data, file):
 			"PF MIN": get_min(data, "PF"),
 	}
 	return details
+
+def add_graph_to_document(document, circuit, opt, idx):
+	type_map= {
+				"Current [A]": "Current",
+				"THD-F [%]": "Current of THD-F",
+				"Power factor": "Power factor",
+				"Voltage [V]": "Voltage"
+	}
+
+	filepath = os.path.abspath('graphs/' + opt + '_' + str(idx+1) + '_' + circuit['Circuit Name'] + '_' + circuit["Circuit current"] + '.png')
+	document.add_picture(filepath, width=Inches(6.0))
+	document.add_paragraph(type_map.get(opt) + ' of ' + circuit["Circuit Name"] + ' for Measurement Period ')
+	document.add_paragraph()
+
+	if opt == "Current [A]":
+		filepath = os.path.abspath('graphs/Current_Weekday_' + str(idx+1) + '_' + circuit['Circuit Name'] + '_' + circuit["Circuit current"] + '.png')
+		document.add_picture(filepath, width=Inches(6.0))
+		document.add_paragraph('Current of ' + circuit["Circuit Name"] + ' for Typical Weekday')
+		document.add_paragraph()
+
+		filepath = os.path.abspath('graphs/Current_Weekend_' + str(idx+1) + '_' + circuit['Circuit Name'] + '_' + circuit["Circuit current"] + '.png')
+		document.add_picture(filepath, width=Inches(6.0))
+		document.add_paragraph('Current of ' + circuit["Circuit Name"] + ' for Typical Saturday and Sunday')
+		document.add_paragraph()
+
+def power_quality_appendix(circuits, circuit_total):
+	document = Document()
+	document.add_heading('Appendix D — LV Switchboard Power Quality', 0)
+	for c in circuits:
+		for g in graph_types:
+			add_graph_to_document(document, c, g, circuits.index(c))
+	document.save('Appendix D.docx')
+
+
 
 
 number = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
@@ -329,6 +388,8 @@ for file in os.listdir(path):
 			number_rows.append(str(num_rows))
 
 		graph_cur_vs_thd(get_columns("Current [A]"), get_columns("THD-F [%]"))
+		graph_additional_current("Weekday", get_columns("Current [A]"), file)
+		graph_additional_current("Weekend", get_columns("Current [A]"), file)
 
 # write circuit info to file
 # circuits_df = pd.DataFrame.from_dict(circuit_details)
@@ -1113,3 +1174,5 @@ for x in range(circuit_total):
 	first_cells[3].text = cur3
 
 document.save('Power Quality Analysis.docx')
+
+power_quality_appendix(circuit_details, circuit_total)
