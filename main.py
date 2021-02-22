@@ -6,10 +6,10 @@ from docx.shared import RGBColor
 from docx.shared import Inches
 import pandas as pd
 import numpy as np
-from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
 from datetime import datetime, timedelta
 import matplotlib.dates as mdates
+from matplotlib.patches import Rectangle
 
 cm = 1/2.54  # centimeters in inches
 exclude_rows = [1, 2, 3, 4, 5, 6]  # rows to exclude in reading CSV file
@@ -22,6 +22,7 @@ def sitename():
 
     return sitename
 
+
 def save_to_png(plt, file, opt):
 	script_dir = os.path.dirname(__file__)
 	results_dir = os.path.join(script_dir, 'graphs/')
@@ -29,6 +30,7 @@ def save_to_png(plt, file, opt):
 		os.makedirs(results_dir)
 	fig = plt.savefig('graphs/'+opt+"_"+os.path.splitext(file)[0]+'.png', bbox_inches='tight', pad_inches=1)
 	plt.close(fig)
+
 
 def graph_meas_period(columns, opt, file):
 	# plot graph
@@ -40,7 +42,6 @@ def graph_meas_period(columns, opt, file):
 
 	if opt != "Power factor":
 		legend = plt.legend(bbox_to_anchor=(0.65, -0.1), ncol=3, columnspacing=15)
-		# plt.xlim([new_df["FormattedTime"].iloc[0], new_df["FormattedTime"].iloc[-1]])
 		# set legend text
 		for col in columns:
 			if "1" in col:
@@ -74,9 +75,8 @@ def graph_meas_period(columns, opt, file):
 	plt.ylabel(opt)
 
 	save_to_png(plt, file, opt)
-
-
 	return num_of_rows
+
 
 def graph_additional_current(opt, columns, file):
 	new_df = df[["FormattedTime"] + ["dateTime"] + columns]
@@ -87,7 +87,6 @@ def graph_additional_current(opt, columns, file):
 		new_df = new_df[new_df["FormattedTime"].dt.dayofweek >= 5]
 
 	new_df.plot(x="dateTime", y=columns, figsize=(25*3*cm, 5*3*cm), color=['black', 'blue', 'red'],x_compat=True)
-
 	legend = plt.legend(bbox_to_anchor=(0.675, -0.15), ncol=3, columnspacing=15)
 
 	# set legend text
@@ -112,6 +111,7 @@ def graph_additional_current(opt, columns, file):
 	plt.ylabel("Current [A]")
 
 	save_to_png(plt,file,"Current_"+opt)
+
 
 def graph_cur_vs_thd(cols_current, cols_thd):
 	graph_df = df[cols_current + cols_thd]
@@ -149,6 +149,7 @@ def graph_cur_vs_thd(cols_current, cols_thd):
 
 	save_to_png(plt, file, "Current_vs_THD")
 
+
 def get_columns(opt):
 	switcher = {
 		"Current [A]": 	["I1[A]", "I2[A]", "I3[A]"],
@@ -158,34 +159,39 @@ def get_columns(opt):
 	}
 	return switcher.get(opt, "Invalid input")
 
+
 def get_df(file):  # get dataFrame from csv
 	data = pd.read_csv(file, skiprows=lambda x: x in exclude_rows, header=0)
 	new_data = data.assign(dateTime=data.Date + "\n" + data.Time, FormattedTime=data.Date + " " + data.Time)
 	new_data['FormattedTime'] = pd.to_datetime(new_data['FormattedTime'], format="%d/%m/%Y %H:%M:%S")
 	return new_data
 
+
 def get_max(df, col):
 	max_index = df[col].idxmax()
 	return df[col].max(), df.iloc[max_index, 0] + ' ' + df.iloc[max_index, 1]
 
+
 def get_min(df, col):
 	min_index = df[col].idxmin()
 	return df[col].min(), df.iloc[min_index, 0] + ' ' + df.iloc[min_index, 1]
+
 
 def get_circuit_operation(df):
 	sLength = len(df['Date'])
 	average_i1 = round(df['I1[A]'].mean(skipna=True), 2)
 	average_i2 = round(df['I2[A]'].mean(skipna=True), 2)
 	average_i3 = round(df['I3[A]'].mean(skipna=True), 2)
-	average_i = max(average_i3, average_i2, average_i1)
+	average_i = min(average_i3, average_i2, average_i1)
 	df['Weekday'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['Hour'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['dateTime'] = pd.Series(np.random.randn(sLength), index=df.index)
+	df['Minute'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['dateTime'] = df['Date'] + ' ' + df['Time']
 	df['dateTime'] = pd.to_datetime(df['dateTime'], format="%d/%m/%Y %H:%M:%S")
 	df['Hour'] = df['dateTime'].dt.hour
+	df['Minute'] = df['dateTime'].dt.minute
 	df['Weekday'] = df['dateTime'].dt.dayofweek
-	print(df)
 	base_load_mon = []
 	base_load_tue = []
 	base_load_wed = []
@@ -193,30 +199,69 @@ def get_circuit_operation(df):
 	base_load_fri = []
 	base_load_sat = []
 	base_load_sun = []
+	weekday_max_base = 0
 	for i in range(len(df["Hour"])):
 		if df['Weekday'].iloc[i] == 0:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_mon.append(df['Hour'].iloc[i])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_mon.append(df['Time'].iloc[i])
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+				if df["I1[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I1[A]"].iloc[i]
+				if df["I2[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I2[A]"].iloc[i]
+				if df["I3[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 1:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_tue.append(df['Hour'].iloc[i])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_tue.append(df['Time'].iloc[i])
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+				if df["I1[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I1[A]"].iloc[i]
+				if df["I2[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I2[A]"].iloc[i]
+				if df["I3[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 2:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_wed.append(df['Hour'].iloc[i])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_wed.append(df['Time'].iloc[i])
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+				if df["I1[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I1[A]"].iloc[i]
+				if df["I2[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I2[A]"].iloc[i]
+				if df["I3[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 3:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_thu.append(df['Hour'].iloc[i])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_thu.append(df['Time'].iloc[i])
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+				if df["I1[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I1[A]"].iloc[i]
+				if df["I2[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I2[A]"].iloc[i]
+				if df["I3[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 4:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_fri.append(df['Hour'].iloc[i])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_fri.append(df['Time'].iloc[i])
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+				if df["I1[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I1[A]"].iloc[i]
+				if df["I2[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I2[A]"].iloc[i]
+				if df["I3[A]"].iloc[i] > weekday_max_base:
+					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 5:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_sat.append(df['Hour'].iloc[i])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_sat.append(df['Time'].iloc[i])
 		elif df['Weekday'].iloc[i] == 6:
-			if df["I1[A]"].iloc[i] > average_i:
-				base_load_sun.append(df['Hour'].iloc[i])
-	base_load_start_weekday = min(base_load_mon[0], base_load_tue[0], base_load_wed[0], base_load_thu[0], base_load_fri[0])
-	base_load_end_weekday = max(base_load_mon[-1], base_load_tue[-1], base_load_wed[-1], base_load_thu[-1], base_load_fri[-1])
+			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
+				base_load_sun.append(df['Time'].iloc[i])
+
+	base_load_start_weekday = min(base_load_mon[0], base_load_tue[0], base_load_wed[0], base_load_thu[0],
+								  base_load_fri[0])
+	base_load_end_weekday = max(base_load_mon[-1], base_load_tue[-1], base_load_wed[-1], base_load_thu[-1],
+								base_load_fri[-1])
 	if len(base_load_sun) == 0 or len(base_load_sun) == 1:
 		details = {
 			"Weekday start": base_load_start_weekday,
@@ -225,6 +270,7 @@ def get_circuit_operation(df):
 			"Sat end": base_load_sat[-1],
 			"Sun start": 0,
 			"Sun end": 0,
+			"Weekday baseload": weekday_max_base,
 		}
 	if len(base_load_sun) > 1:
 		details = {
@@ -234,8 +280,10 @@ def get_circuit_operation(df):
 			"Sat end": base_load_sat[-1],
 			"Sun start": base_load_sun[0],
 			"Sun end": base_load_sun[-1],
+			"Weekday baseload": weekday_max_base,
 		}
 	return details
+
 
 def get_average(df):
 	maxi_THD1 = round(df['THD-F_I1[%]'].max(), 2)
@@ -313,6 +361,7 @@ def get_circuit_details(data, file):
 	}
 	return details
 
+
 def add_graph_to_document(document, circuit, opt, idx):
 	type_map= {
 				"Current [A]": "Current",
@@ -337,6 +386,7 @@ def add_graph_to_document(document, circuit, opt, idx):
 		document.add_paragraph('Current of ' + circuit["Circuit Name"] + ' for Typical Saturday and Sunday')
 		document.add_paragraph()
 
+
 def power_quality_appendix(circuits, circuit_total):
 	document = Document()
 	document.add_heading('Appendix D — LV Switchboard Power Quality', 0)
@@ -344,8 +394,6 @@ def power_quality_appendix(circuits, circuit_total):
 		for g in graph_types:
 			add_graph_to_document(document, c, g, circuits.index(c))
 	document.save('Appendix D.docx')
-
-
 
 
 number = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
@@ -402,7 +450,6 @@ numbers = str(incomer_total)
 circuit400 = circuit_total - incomer_total
 incomer_tot = str(incomer_total)
 circuit_number = str(circuit400)
-# print(circuit_details[0]["Circuit Name"])
 
 document = Document()
 document.add_heading('Power Quality Analysis', 0)
@@ -414,7 +461,7 @@ p.add_run('A incomers. ')
 p.add_run('Energenz conducted power quality measurements on ')
 p.add_run(number[incomer_total])
 p.add_run(' (' + incomer_tot + ') ')
-p.add_run(' of the incomers and ')
+p.add_run('of the incomers and ')
 p.add_run(number[circuit400])
 p.add_run(' (' + circuit_number + ') ')
 p.add_run('400A subcircuits:')
@@ -431,40 +478,51 @@ for x in range(incomer_total):
 	document.add_heading(circuit_details[x]["Circuit Name"] + ' (' + circuit_details[x]["Circuit current"] + 'A)', level=1)
 	p = document.add_paragraph().add_run('Current and Voltage')
 	p.bold = True
+
 	baseload_weekday_start = str(incomer_detail[x]["Weekday start"])
-	if len(baseload_weekday_start) == 1:
+	if len(baseload_weekday_start) == 7:
 		baseload_weekday_start = "0" + baseload_weekday_start
+	baseload_weekday_start = baseload_weekday_start[:5]
 	baseload_weekday_end = str(incomer_detail[x]["Weekday end"])
-	if len(baseload_weekday_end) == 1:
+	if len(baseload_weekday_end) == 7:
 		baseload_weekday_end = "0" + baseload_weekday_end
+	baseload_weekday_end = baseload_weekday_end[:5]
+
 	incomer_curmin = round(circuit_average[x]["MIN i"], -1)
-	incomer_curmax = str(incomer_curmin +30)
 	incomer_curmin = str(incomer_curmin)
+	incomer_curmax = round(incomer_detail[x]["Weekday baseload"], -1)
+	incomer_curmax = str(incomer_curmax)
 	document.add_paragraph('The daily pattern of current demand is different from weekday to weekend. ' +
-						   'The current demand in weekday increases at around ' + baseload_weekday_start + ':00 ' +
-						   'and decreases at around ' + baseload_weekday_end + ':00. The baseload in weekday is ' +
+						   'The current demand in weekday increases at around ' + baseload_weekday_start +
+						   ' and decreases at around ' + baseload_weekday_end + '. The baseload in weekday is ' +
 						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A at non-peak hours')
 	baseload_sat_start = str(incomer_detail[x]["Sat start"])
-	if len(baseload_sat_start) == 1:
+	if len(baseload_sat_start) == 7:
 		baseload_sat_start = "0" + baseload_sat_start
+	baseload_sat_start = baseload_sat_start[:5]
 	baseload_sat_end = str(incomer_detail[x]["Sat end"])
-	if len(baseload_sat_end) == 1:
+	if len(baseload_sat_end) == 7:
 		baseload_sat_end = "0" + baseload_sat_end
-	document.add_paragraph('The current demand on Saturday increases at around ' + baseload_sat_start + ':00 ' +
-						   'and decreases at around ' + baseload_sat_end + ':00. The baseload on Saturday is ' +
+	baseload_sat_end = baseload_sat_end[:5]
+
+	document.add_paragraph('The current demand on Saturday increases at around ' + baseload_sat_start +
+						   ' and decreases at around ' + baseload_sat_end + '. The baseload on Saturday is ' +
 						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A  at non-peak hours')
-	if incomer_detail[x]["Sat start"] == 0:
+
+	if incomer_detail[x]["Sun start"] == 0:
 		document.add_paragraph('The current demand on Sunday stays within the base load of ' +  incomer_curmin +
 							   'A to ' + incomer_curmax + 'A for the whole day.')
 	else:
 		baseload_sun_start = str(incomer_detail[x]["Sun start"])
-		if len(baseload_sun_start) == 1:
+		if len(baseload_sun_start) == 7:
 			baseload_sun_start = "0" + baseload_sun_start
+		baseload_sun_start = baseload_sun_start[:5]
 		baseload_sun_end = str(incomer_detail[x]["Sun end"])
-		if len(baseload_sun_end) == 1:
+		if len(baseload_sun_end) == 7:
 			baseload_sun_end = "0" + baseload_sun_end
-		document.add_paragraph('The current demand on Sunday increases at around ' + baseload_sun_start + ':00 ' +
-							   'and decreases at around ' + baseload_sun_end + ':00. The baseload on Sunday is ' +
+		baseload_sun_end = baseload_sun_end[:5]
+		document.add_paragraph('The current demand on Sunday increases at around ' + baseload_sun_start +
+							   ' and decreases at around ' + baseload_sun_end + '. The baseload on Sunday is ' +
 							   'about ' + incomer_curmin + 'A to ' + incomer_curmax + 'A  at non-peak hours')
 
 	document.add_paragraph('The current and voltage measurement are presented below.')
@@ -632,21 +690,21 @@ for x in range(incomer_total):
 		if int(circuit_average[x]["MAX THD"]) > 12:
 			word = "does not fulfill"
 		else:
-			word = "satisfies"
+			word = "fulfills"
 	elif int(circuit_details[x]["Circuit current"]) >= 800 and int(circuit_details[x]["Circuit current"]) < 2000:
 		circuitTHD = "8.0%"
 		wording = "is between 800A and 2,000A"
 		if int(circuit_average[x]["MAX THD"]) > 8:
 			word = "does not fulfill"
 		else:
-			word = "satisfies"
+			word = "fulfills"
 	elif int(circuit_details[x]["Circuit current"]) > 2000:
 		circuitTHD = "5.0%"
 		wording = "is greater than 2,000A"
 		if int(circuit_average[x]["MAX THD"]) > 5:
 			word = "does not fulfill"
 		else:
-			word = "satisfies"
+			word = "fulfills"
 
 	first = document.add_paragraph('As shown in the table, the rated current of the incomer ' + wording)
 	first.add_run(' and the harmonic distortion percentage of current should not be above ' + circuitTHD + '. ')
@@ -1069,21 +1127,17 @@ count = 0
 count_and = 0
 for x in range(circuit_total):
 	if int(circuit_details[x]["Circuit current"])>= 400 and int(circuit_details[x]["Circuit current"]) < 800:
-		if int(circuit_average[x]["AVE THD1"]) > 12 or int(circuit_average[x]["AVE THD2"]) > 12 or\
-				int(circuit_average[x]["AVE THD3"]) > 12:
+		if int(circuit_average[x]["MAX THD"]) > 12:
 			count_and += 1
 	elif int(circuit_details[x]["Circuit current"]) >= 800 and int(circuit_details[x]["Circuit current"]) < 2000:
-		if int(circuit_average[x]["AVE THD1"]) > 8 or int(circuit_average[x]["AVE THD2"]) > 8 or \
-				int(circuit_average[x]["AVE THD3"]) > 8:
+		if int(circuit_average[x]["MAX THD"]) > 8:
 			count_and += 1
 	elif int(circuit_details[x]["Circuit current"]) > 2000:
-		if int(circuit_average[x]["AVE THD1"]) > 5 or int(circuit_average[x]["AVE THD2"]) > 5 or\
-				int(circuit_average[x]["AVE THD3"]) > 5:
+		if int(circuit_average[x]["MAX THD"]) > 5:
 			count_and += 1
 for x in range(circuit_total):
 	if int(circuit_details[x]["Circuit current"])>= 400 and int(circuit_details[x]["Circuit current"]) < 800:
-		if int(circuit_average[x]["AVE THD1"]) > 12 or int(circuit_average[x]["AVE THD2"]) > 12 or\
-				int(circuit_average[x]["AVE THD3"]) > 12:
+		if int(circuit_average[x]["MAX THD"]) > 12:
 			count += 1
 			if count == count_and - 1:
 				words1.add_run(circuit_details[x]["Circuit Name"] + ' and ')
@@ -1092,8 +1146,7 @@ for x in range(circuit_total):
 			else:
 				words1.add_run(circuit_details[x]["Circuit Name"] + ', ')
 	elif int(circuit_details[x]["Circuit current"]) >= 800 and int(circuit_details[x]["Circuit current"]) < 2000:
-		if int(circuit_average[x]["AVE THD1"]) > 8 or int(circuit_average[x]["AVE THD2"]) > 8 or \
-				int(circuit_average[x]["AVE THD3"]) > 8:
+		if int(circuit_average[x]["MAX THD"]) > 8:
 			count += 1
 			if count == count_and - 1:
 				words1.add_run(circuit_details[x]["Circuit Name"] + ' and ')
@@ -1102,8 +1155,7 @@ for x in range(circuit_total):
 			else:
 				words1.add_run(circuit_details[x]["Circuit Name"] + ', ')
 	elif int(circuit_details[x]["Circuit current"]) > 2000:
-		if int(circuit_average[x]["AVE THD1"]) > 5 or int(circuit_average[x]["AVE THD2"]) > 5 or\
-				int(circuit_average[x]["AVE THD3"]) > 5:
+		if int(circuit_average[x]["MAX THD"]) > 5:
 			count += 1
 			if count == count_and - 1:
 				words1.add_run(circuit_details[x]["Circuit Name"] + ' and ')
