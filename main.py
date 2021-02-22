@@ -10,6 +10,7 @@ from matplotlib.dates import DateFormatter
 from datetime import datetime, timedelta
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
+import math
 
 cm = 1/2.54  # centimeters in inches
 exclude_rows = [1, 2, 3, 4, 5, 6]  # rows to exclude in reading CSV file
@@ -179,10 +180,15 @@ def get_min(df, col):
 
 def get_circuit_operation(df):
 	sLength = len(df['Date'])
-	average_i1 = round(df['I1[A]'].mean(skipna=True), 2)
-	average_i2 = round(df['I2[A]'].mean(skipna=True), 2)
-	average_i3 = round(df['I3[A]'].mean(skipna=True), 2)
-	average_i = min(average_i3, average_i2, average_i1)
+	max_i1 = round(df['I1[A]'].max(), 2)
+	max_i2 = round(df['I2[A]'].max(), 2)
+	max_i3 = round(df['I3[A]'].max(), 2)
+	max_i = min(max_i2, max_i2, max_i3)
+	min_i1 = round(df['I1[A]'].min(), 2)
+	min_i2 = round(df['I2[A]'].min(), 2)
+	min_i3 = round(df['I3[A]'].min(), 2)
+	min_i = max(min_i1, min_i2, min_i3)
+	average_i = (max_i - min_i)*0.3
 	df['Weekday'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['Hour'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['dateTime'] = pd.Series(np.random.randn(sLength), index=df.index)
@@ -200,55 +206,65 @@ def get_circuit_operation(df):
 	base_load_sat = []
 	base_load_sun = []
 	weekday_max_base = 0
-	for i in range(len(df["Hour"])):
+	for i in range(len(df["Hour"])-2):
 		if df['Weekday'].iloc[i] == 0:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_mon.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8 and df["I1[A]"].iloc[i+2] < average_i*0.8:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
+			elif df["I2[A]"].iloc[i] < average_i*0.8 and df["I2[A]"].iloc[i-2] < average_i*0.8 and df["I2[A]"].iloc[i+2] < average_i*0.8:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
+			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i-2] < average_i * 0.8 and df["I3[A]"].iloc[i+2] < average_i*0.8:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 1:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_tue.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+			elif df["I1[A]"].iloc[i] < average_i * 0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
+			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
+			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 2:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_wed.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
+			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
+			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 3:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_thu.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+			elif df["I1[A]"].iloc[i] < average_i * 0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
+			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
+			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 4:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_fri.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8:
+			elif df["I1[A]"].iloc[i] < average_i * 0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
+			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
+			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 5:
@@ -257,11 +273,11 @@ def get_circuit_operation(df):
 		elif df['Weekday'].iloc[i] == 6:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_sun.append(df['Time'].iloc[i])
-
 	base_load_start_weekday = min(base_load_mon[0], base_load_tue[0], base_load_wed[0], base_load_thu[0],
 								  base_load_fri[0])
 	base_load_end_weekday = max(base_load_mon[-1], base_load_tue[-1], base_load_wed[-1], base_load_thu[-1],
 								base_load_fri[-1])
+	weekday_max_base = (math.ceil(weekday_max_base/10))*10
 	if len(base_load_sun) == 0 or len(base_load_sun) == 1:
 		details = {
 			"Weekday start": base_load_start_weekday,
@@ -297,7 +313,7 @@ def get_average(df):
 	average_i1 = round(df['I1[A]'].mean(skipna=True), 2)
 	average_i2 = round(df['I2[A]'].mean(skipna=True), 2)
 	average_i3 = round(df['I3[A]'].mean(skipna=True), 2)
-	exchange = (df['I1[A]'].min() + df['I2[A]'].min()+ df['I3[A]'].min())/3
+	exchange = min(df['I1[A]'].min(), df['I2[A]'].min(), df['I3[A]'].min())
 	min_i = round(exchange, 2)
 	average_PF = round(df['PF'].mean(skipna=True), 2)
 	max_pf = round(df['PF'].max(), 2)
@@ -330,8 +346,6 @@ def get_average(df):
 	return details
 
 def get_circuit_details(data, file):
-	# s = data
-	# s['PF'].abs()
 	details = {
 			"Circuit Name": os.path.splitext(file)[0].split("_")[1],
 			"Circuit current": os.path.splitext(file)[0].split("_")[2],
@@ -507,9 +521,9 @@ for x in range(incomer_total):
 
 	document.add_paragraph('The current demand on Saturday increases at around ' + baseload_sat_start +
 						   ' and decreases at around ' + baseload_sat_end + '. The baseload on Saturday is ' +
-						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A  at non-peak hours')
+						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A at non-peak hours')
 
-	if incomer_detail[x]["Sun start"] == 0:
+	if incomer_detail[x]["Sun start"] < 4:
 		document.add_paragraph('The current demand on Sunday stays within the base load of ' +  incomer_curmin +
 							   'A to ' + incomer_curmax + 'A for the whole day.')
 	else:
@@ -523,7 +537,7 @@ for x in range(incomer_total):
 		baseload_sun_end = baseload_sun_end[:5]
 		document.add_paragraph('The current demand on Sunday increases at around ' + baseload_sun_start +
 							   ' and decreases at around ' + baseload_sun_end + '. The baseload on Sunday is ' +
-							   'about ' + incomer_curmin + 'A to ' + incomer_curmax + 'A  at non-peak hours')
+							   'about ' + incomer_curmin + 'A to ' + incomer_curmax + 'A at non-peak hours')
 
 	document.add_paragraph('The current and voltage measurement are presented below.')
 
