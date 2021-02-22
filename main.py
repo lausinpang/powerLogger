@@ -278,7 +278,7 @@ def get_circuit_operation(df):
 	base_load_end_weekday = max(base_load_mon[-1], base_load_tue[-1], base_load_wed[-1], base_load_thu[-1],
 								base_load_fri[-1])
 	weekday_max_base = (math.ceil(weekday_max_base/10))*10
-	if len(base_load_sun) == 0 or len(base_load_sun) == 1:
+	if len(base_load_sun) < 4:
 		details = {
 			"Weekday start": base_load_start_weekday,
 			"Weekday end": base_load_end_weekday,
@@ -288,7 +288,7 @@ def get_circuit_operation(df):
 			"Sun end": 0,
 			"Weekday baseload": weekday_max_base,
 		}
-	if len(base_load_sun) > 1:
+	if len(base_load_sun) > 3:
 		details = {
 			"Weekday start": base_load_start_weekday,
 			"Weekday end": base_load_end_weekday,
@@ -523,7 +523,7 @@ for x in range(incomer_total):
 						   ' and decreases at around ' + baseload_sat_end + '. The baseload on Saturday is ' +
 						   'about '+ incomer_curmin + 'A to ' + incomer_curmax + 'A at non-peak hours')
 
-	if incomer_detail[x]["Sun start"] < 4:
+	if incomer_detail[x]["Sun start"] == 0:
 		document.add_paragraph('The current demand on Sunday stays within the base load of ' +  incomer_curmin +
 							   'A to ' + incomer_curmax + 'A for the whole day.')
 	else:
