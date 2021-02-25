@@ -81,9 +81,15 @@ def graph_meas_period(columns, opt, file):
 
 def graph_additional_current(opt, columns, file):
 	new_df = df[["FormattedTime"] + ["dateTime"] + columns]
-
 	if opt == "Weekday":
-		new_df = new_df[new_df["FormattedTime"].dt.dayofweek < 5]
+		sLength = len(new_df['FormattedTime'])
+		new_df['check'] = pd.Series(np.random.randn(sLength), index=new_df.index)
+		new_df['check'] = new_df["FormattedTime"].dt.dayofweek
+		for i in range(len(new_df["FormattedTime"])):
+			if new_df["check"].iloc[i] == 5 or new_df["check"].iloc[i] == 6:
+				new_df["I1[A]"].iloc[i] = 0
+				new_df["I2[A]"].iloc[i] = 0
+				new_df["I3[A]"].iloc[i] = 0
 	elif opt == "Weekend":
 		new_df = new_df[new_df["FormattedTime"].dt.dayofweek >= 5]
 
@@ -210,61 +216,61 @@ def get_circuit_operation(df):
 		if df['Weekday'].iloc[i] == 0:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_mon.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i-2] < average_i*0.8 and df["I1[A]"].iloc[i+2] < average_i*0.8:
+			elif df["I1[A]"].iloc[i] < average_i and df["I1[A]"].iloc[i-2] < average_i and df["I1[A]"].iloc[i+2] < average_i:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
-			elif df["I2[A]"].iloc[i] < average_i*0.8 and df["I2[A]"].iloc[i-2] < average_i*0.8 and df["I2[A]"].iloc[i+2] < average_i*0.8:
+			elif df["I2[A]"].iloc[i] < average_i and df["I2[A]"].iloc[i-2] < average_i and df["I2[A]"].iloc[i+2] < average_i:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
-			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i-2] < average_i * 0.8 and df["I3[A]"].iloc[i+2] < average_i*0.8:
+			elif df["I3[A]"].iloc[i] < average_i and df["I3[A]"].iloc[i-2] < average_i and df["I3[A]"].iloc[i+2] < average_i:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 1:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_tue.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i * 0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I1[A]"].iloc[i] < average_i and df["I1[A]"].iloc[i - 2] < average_i and df["I1[A]"].iloc[i + 2] < average_i:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
-			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I2[A]"].iloc[i] < average_i and df["I2[A]"].iloc[i - 2] < average_i and df["I2[A]"].iloc[i + 2] < average_i:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
-			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I3[A]"].iloc[i] < average_i and df["I3[A]"].iloc[i - 2] < average_i and df["I3[A]"].iloc[i + 2] < average_i:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 2:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_wed.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i*0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I1[A]"].iloc[i] < average_i and df["I1[A]"].iloc[i - 2] < average_i and df["I1[A]"].iloc[i + 2] < average_i:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
-			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I2[A]"].iloc[i] < average_i and df["I2[A]"].iloc[i - 2] < average_i and df["I2[A]"].iloc[i + 2] < average_i:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
-			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I3[A]"].iloc[i] < average_i and df["I3[A]"].iloc[i - 2] < average_i and df["I3[A]"].iloc[i + 2] < average_i:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 3:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_thu.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i * 0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I1[A]"].iloc[i] < average_i and df["I1[A]"].iloc[i - 2] < average_i and df["I1[A]"].iloc[i + 2] < average_i:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
-			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I2[A]"].iloc[i] < average_i and df["I2[A]"].iloc[i - 2] < average_i and df["I2[A]"].iloc[i + 2] < average_i:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
-			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I3[A]"].iloc[i] < average_i and df["I3[A]"].iloc[i - 2] < average_i and df["I3[A]"].iloc[i + 2] < average_i:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 4:
 			if df["I1[A]"].iloc[i] > average_i or df["I2[A]"].iloc[i] > average_i or df["I3[A]"].iloc[i] > average_i:
 				base_load_fri.append(df['Time'].iloc[i])
-			elif df["I1[A]"].iloc[i] < average_i * 0.8 and df["I1[A]"].iloc[i - 2] < average_i * 0.8 and df["I1[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I1[A]"].iloc[i] < average_i and df["I1[A]"].iloc[i - 2] < average_i and df["I1[A]"].iloc[i + 2] < average_i:
 				if df["I1[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I1[A]"].iloc[i]
-			elif df["I2[A]"].iloc[i] < average_i * 0.8 and df["I2[A]"].iloc[i - 2] < average_i * 0.8 and df["I2[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I2[A]"].iloc[i] < average_i and df["I2[A]"].iloc[i - 2] < average_i and df["I2[A]"].iloc[i + 2] < average_i:
 				if df["I2[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I2[A]"].iloc[i]
-			elif df["I3[A]"].iloc[i] < average_i * 0.8 and df["I3[A]"].iloc[i - 2] < average_i * 0.8 and df["I3[A]"].iloc[i + 2] < average_i * 0.8:
+			elif df["I3[A]"].iloc[i] < average_i and df["I3[A]"].iloc[i - 2] < average_i and df["I3[A]"].iloc[i + 2] < average_i:
 				if df["I3[A]"].iloc[i] > weekday_max_base:
 					weekday_max_base = df["I3[A]"].iloc[i]
 		elif df['Weekday'].iloc[i] == 5:
@@ -448,7 +454,6 @@ for file in os.listdir(path):
 			col_list = get_columns(option)
 			num_rows = graph_meas_period(col_list, option, file)
 			number_rows.append(str(num_rows))
-
 		graph_cur_vs_thd(get_columns("Current [A]"), get_columns("THD-F [%]"))
 		graph_additional_current("Weekday", get_columns("Current [A]"), file)
 		graph_additional_current("Weekend", get_columns("Current [A]"), file)
@@ -614,6 +619,18 @@ for x in range(incomer_total):
 	document.add_picture(filepath, width=Inches(6.0))
 	document.add_paragraph('Current of ' + circuit_details[x]["Circuit Name"] + ' for Measurement Period ')
 	document.add_paragraph()
+	filepath = os.path.abspath(
+		'graphs/Current_Weekday_' + str(i) + '_' + circuit_details[x]["Circuit Name"] + '_' + circuit_details[x][
+			"Circuit current"] + '.png')
+	document.add_picture(filepath, width=Inches(6.0))
+	document.add_paragraph('Current of ' + circuit_details[x]["Circuit Name"] + ' for Typical Weekday ')
+	document.add_paragraph()
+	filepath = os.path.abspath(
+		'graphs/Current_Weekend_' + str(i) + '_' + circuit_details[x]["Circuit Name"] + '_' + circuit_details[x][
+			"Circuit current"] + '.png')
+	document.add_picture(filepath, width=Inches(6.0))
+	document.add_paragraph('Current of ' + circuit_details[x]["Circuit Name"] + ' for Typical Weekend ')
+	document.add_paragraph()
 	document.add_paragraph()
 
 	# add voltage table and label format
@@ -696,6 +713,8 @@ for x in range(incomer_total):
 						   'regulated the maximum THD at difference rated circuit current. The details are shown below.')
 	filepath = os.path.abspath('graphs/THD'+ '.png')
 	document.add_picture(filepath, width=Inches(4.0))
+	thd = document.add_paragraph().add_run("Please add the red box indicated the current range after delete this sentence.")
+	thd.font.color.rgb = RGBColor(0, 255, 255)
 	document.add_paragraph('Code of Practice of Energy Efficiency of Building Services Installation')
 
 	if int(circuit_details[x]["Circuit current"])>= 400 and int(circuit_details[x]["Circuit current"]) < 800:
@@ -1239,6 +1258,6 @@ for x in range(circuit_total):
 	cur3 = str(circuit_average[x]["PF MIN"])
 	first_cells[3].text = cur3
 
-document.save('Power Quality Analysis.docx')
+document.save('Section 5: Power Quality Analysis.docx')
 
 power_quality_appendix(circuit_details, circuit_total)
