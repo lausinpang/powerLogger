@@ -6,11 +6,10 @@ from docx.shared import RGBColor
 from docx.shared import Inches
 import pandas as pd
 import numpy as np
-from matplotlib.dates import DateFormatter
-from datetime import datetime, timedelta
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
 import math
+import warnings
 
 cm = 1/2.54  # centimeters in inches
 exclude_rows = [1, 2, 3, 4, 5, 6]  # rows to exclude in reading CSV file
@@ -80,20 +79,13 @@ def graph_meas_period(columns, opt, file):
 
 
 def graph_additional_current(opt, columns, file):
-	new_df = df[["FormattedTime"] + ["dateTime"] + columns]
+	new_df = df[["Date"] + ["FormattedTime"] + ["dateTime"] + columns]
 	if opt == "Weekday":
-		sLength = len(new_df['FormattedTime'])
-		new_df['check'] = pd.Series(np.random.randn(sLength), index=new_df.index)
-		new_df['check'] = new_df["FormattedTime"].dt.dayofweek
-		for i in range(len(new_df["FormattedTime"])):
-			if new_df["check"].iloc[i] == 5 or new_df["check"].iloc[i] == 6:
-				new_df["I1[A]"].iloc[i] = 0
-				new_df["I2[A]"].iloc[i] = 0
-				new_df["I3[A]"].iloc[i] = 0
+		new_df = new_df[new_df["FormattedTime"].dt.dayofweek < 5]
 	elif opt == "Weekend":
 		new_df = new_df[new_df["FormattedTime"].dt.dayofweek >= 5]
 
-	new_df.plot(x="dateTime", y=columns, figsize=(25*3*cm, 5*3*cm), color=['black', 'blue', 'red'],x_compat=True)
+	new_df.plot(x="Date", y=columns, figsize=(25*3*cm, 5*3*cm), color=['black', 'blue', 'red'],x_compat=True)
 	legend = plt.legend(bbox_to_anchor=(0.675, -0.15), ncol=3, columnspacing=15)
 
 	# set legend text
@@ -110,14 +102,12 @@ def graph_additional_current(opt, columns, file):
 		legend.get_texts()[columns.index(col)].set_text("Current " + col)
 		legend.legendHandles[columns.index(col)].set_color(color)
 
-	plt.gca().margins(0)
-	plt.gcf().autofmt_xdate()
 	plt.xticks(fontsize=6)
 	plt.grid()
 	plt.xlabel("")
 	plt.ylabel("Current [A]")
 
-	save_to_png(plt,file,"Current_"+opt)
+	save_to_png(plt, file, "Current_"+opt)
 
 
 def graph_cur_vs_thd(cols_current, cols_thd):
@@ -194,7 +184,7 @@ def get_circuit_operation(df):
 	min_i2 = round(df['I2[A]'].min(), 2)
 	min_i3 = round(df['I3[A]'].min(), 2)
 	min_i = max(min_i1, min_i2, min_i3)
-	average_i = (max_i - min_i)*0.3
+	average_i = (max_i - min_i)*0.5
 	df['Weekday'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['Hour'] = pd.Series(np.random.randn(sLength), index=df.index)
 	df['dateTime'] = pd.Series(np.random.randn(sLength), index=df.index)
@@ -433,6 +423,7 @@ incomer_detail = list()
 # max and min and their coorsponding time or current, voltage, power factor and THD
 # average of current, voltage, power factor and THD
 
+warnings.simplefilter("ignore")
 path = 'files/'
 # LOOP for each circuit/excel file
 for file in os.listdir(path):
@@ -714,7 +705,7 @@ for x in range(incomer_total):
 	filepath = os.path.abspath('graphs/THD'+ '.png')
 	document.add_picture(filepath, width=Inches(4.0))
 	thd = document.add_paragraph().add_run("Please add the red box indicated the current range after delete this sentence.")
-	thd.font.color.rgb = RGBColor(0, 255, 255)
+	thd.font.color.rgb = RGBColor(255, 0, 0)
 	document.add_paragraph('Code of Practice of Energy Efficiency of Building Services Installation')
 
 	if int(circuit_details[x]["Circuit current"])>= 400 and int(circuit_details[x]["Circuit current"]) < 800:
@@ -1258,6 +1249,6 @@ for x in range(circuit_total):
 	cur3 = str(circuit_average[x]["PF MIN"])
 	first_cells[3].text = cur3
 
-document.save('Section 5: Power Quality Analysis.docx')
+document.save('Section 5 Power Quality Analysis.docx')
 
 power_quality_appendix(circuit_details, circuit_total)
