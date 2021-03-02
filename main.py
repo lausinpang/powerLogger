@@ -275,7 +275,7 @@ def get_circuit_operation(df):
 								base_load_fri[-1])
 	weekday_max_base = (math.ceil(weekday_max_base/10))*10
 	if len(base_load_sun) < 4:
-		details = {
+		detail = {
 			"Weekday start": base_load_start_weekday,
 			"Weekday end": base_load_end_weekday,
 			"Sat start": base_load_sat[0],
@@ -285,7 +285,7 @@ def get_circuit_operation(df):
 			"Weekday baseload": weekday_max_base,
 		}
 	if len(base_load_sun) > 3:
-		details = {
+		detail = {
 			"Weekday start": base_load_start_weekday,
 			"Weekday end": base_load_end_weekday,
 			"Sat start": base_load_sat[0],
@@ -294,7 +294,7 @@ def get_circuit_operation(df):
 			"Sun end": base_load_sun[-1],
 			"Weekday baseload": weekday_max_base,
 		}
-	return details
+	return detail
 
 
 def get_average(df):
@@ -722,7 +722,7 @@ for x in range(incomer_total):
 			word = "does not fulfill"
 		else:
 			word = "fulfills"
-	elif int(circuit_details[x]["Circuit current"]) > 2000:
+	elif int(circuit_details[x]["Circuit current"]) >= 2000:
 		circuitTHD = "5.0%"
 		wording = "is greater than 2,000A"
 		if int(circuit_average[x]["MAX THD"]) > 5:
@@ -815,7 +815,7 @@ for x in range(incomer_total):
 	first_cells[3].text = curmin
 	curave = str(circuit_average[x]["AVE PF"])
 	first_cells[4].text = curave
-	document.add_paragraph
+	document.add_paragraph()
 	filepath = os.path.abspath(
 		'graphs/Power factor_' + str(i) + '_' + circuit_details[x]["Circuit Name"] + '_' + circuit_details[x][
 			"Circuit current"] + '.png')
